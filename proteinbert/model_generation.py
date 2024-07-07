@@ -7,10 +7,10 @@ from tensorflow import keras
 
 from .shared_utils.util import log
 from .tokenization import additional_token_to_index, n_tokens, tokenize_seq
-    
+
 class ModelGenerator:
 
-    def __init__(self, optimizer_class = keras.optimizers.Adam, lr = 2e-04, other_optimizer_kwargs = {}, model_weights = None, optimizer_weights = None):
+    def __init__(self, optimizer_class = keras.optimizers.legacy.Adam, lr = 2e-04, other_optimizer_kwargs = {}, model_weights = None, optimizer_weights = None):
         self.optimizer_class = optimizer_class
         self.lr = lr
         self.other_optimizer_kwargs = other_optimizer_kwargs
@@ -18,7 +18,7 @@ class ModelGenerator:
         self.optimizer_weights = optimizer_weights
         
     def train(self, encoded_train_set, encoded_valid_set, seq_len, batch_size, n_epochs, lr = None, callbacks = [], **create_model_kwargs):
-    
+        
         train_X, train_Y, train_sample_weigths = encoded_train_set
         self.dummy_epoch = (_slice_arrays(train_X, slice(0, 1)), _slice_arrays(train_Y, slice(0, 1)))
         model = self.create_model(seq_len, **create_model_kwargs)
@@ -56,7 +56,7 @@ class ModelGenerator:
         
 class PretrainingModelGenerator(ModelGenerator):
 
-    def __init__(self, create_model_function, n_annotations, create_model_kwargs = {}, optimizer_class = keras.optimizers.Adam, lr = 2e-04, other_optimizer_kwargs = {}, \
+    def __init__(self, create_model_function, n_annotations, create_model_kwargs = {}, optimizer_class = keras.optimizers.legacy.Adam, lr = 2e-04, other_optimizer_kwargs = {}, \
             annots_loss_weight = 1, model_weights = None, optimizer_weights = None):
         
         ModelGenerator.__init__(self, optimizer_class = optimizer_class, lr = lr, other_optimizer_kwargs = other_optimizer_kwargs, model_weights = model_weights, \

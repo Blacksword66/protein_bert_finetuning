@@ -61,7 +61,7 @@ def finetune(model_generator, input_encoder, output_spec, train_seqs, train_raw_
         final_batch_size = max(int(batch_size / (final_seq_len / seq_len)), 1)
         encoded_train_set, encoded_valid_set = encode_train_and_valid_sets(train_seqs, train_raw_Y, valid_seqs, valid_raw_Y, input_encoder, output_spec, final_seq_len)
         model_generator.train(encoded_train_set, encoded_valid_set, final_seq_len, final_batch_size, n_final_epochs, lr = final_lr, callbacks = callbacks, \
-                freeze_pretrained_layers = False)
+                freeze_pretrained_layers = False)   
                 
     model_generator.optimizer_weights = None
 
