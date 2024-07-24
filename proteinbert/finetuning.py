@@ -65,8 +65,7 @@ def finetune(model_generator, input_encoder, output_spec, train_seqs, train_raw_
                 
     model_generator.optimizer_weights = None
 
-def evaluate_by_len(model_generator, input_encoder, output_spec, seqs, raw_Y, start_seq_len = 512, start_batch_size = 32, increase_factor = 2):
-    
+def evaluate_by_len(model_generator, input_encoder, output_spec, seqs, raw_Y, start_seq_len=512, start_batch_size=32, increase_factor=2, output_csv="predictions.csv"):
     assert model_generator.optimizer_weights is None
     
     dataset = pd.DataFrame({'seq': seqs, 'raw_y': raw_Y})
@@ -75,43 +74,53 @@ def evaluate_by_len(model_generator, input_encoder, output_spec, seqs, raw_Y, st
     results_names = []
     y_trues = []
     y_preds = []
+    y_probs = []
+    sequences = []
     
-    for len_matching_dataset, seq_len, batch_size in split_dataset_by_len(dataset, start_seq_len = start_seq_len, start_batch_size = start_batch_size, \
-            increase_factor = increase_factor):
-
-        X, y_true, sample_weights = encode_dataset(len_matching_dataset['seq'], len_matching_dataset['raw_y'], input_encoder, output_spec, \
-                seq_len = seq_len, needs_filtering = False)
+    for len_matching_dataset, seq_len, batch_size in split_dataset_by_len(dataset, start_seq_len=start_seq_len, start_batch_size=start_batch_size, increase_factor=increase_factor):
+        X, y_true, sample_weights = encode_dataset(len_matching_dataset['seq'], len_matching_dataset['raw_y'], input_encoder, output_spec, seq_len=seq_len, needs_filtering=False)
         
         assert set(np.unique(sample_weights)) <= {0.0, 1.0}
         y_mask = (sample_weights == 1)
         
         model = model_generator.create_model(seq_len)
-        y_pred = model.predict(X, batch_size = batch_size)
+        y_pred = model.predict(X, batch_size=batch_size)
         
         y_true = y_true[y_mask].flatten()
         y_pred = y_pred[y_mask]
         
         if output_spec.output_type.is_categorical:
-            y_pred = y_pred.reshape((-1, y_pred.shape[-1]))
+            y_prob = y_pred.reshape((-1, y_pred.shape[-1]))
+            y_pred = np.argmax(y_prob, axis=-1)
         else:
-            y_pred = y_pred.flatten()
+            y_prob = y_pred.flatten()
+            y_pred = (y_prob >= 0.5).astype(int)
         
         results.append(get_evaluation_results(y_true, y_pred, output_spec))
         results_names.append(seq_len)
         
         y_trues.append(y_true)
         y_preds.append(y_pred)
+        y_probs.append(y_prob)
+        sequences.extend(len_matching_dataset['seq'][y_mask])
         
-    y_true = np.concatenate(y_trues, axis = 0)
-    y_pred = np.concatenate(y_preds, axis = 0)
-    all_results, confusion_matrix = get_evaluation_results(y_true, y_pred, output_spec, return_confusion_matrix = True)
+    y_true = np.concatenate(y_trues, axis=0)
+    y_pred = np.concatenate(y_preds, axis=0)
+    y_prob = np.concatenate(y_probs, axis=0)
+    
+    all_results, confusion_matrix = get_evaluation_results(y_true, y_pred, output_spec, return_confusion_matrix=True)
     results.append(all_results)
     results_names.append('All')
     
-    results = pd.DataFrame(results, index = results_names)
+    results = pd.DataFrame(results, index=results_names)
     results.index.name = 'Model seq len'
     
+    # Save predictions, probabilities, and sequences to a CSV file
+    predictions_df = pd.DataFrame({'sequence': sequences, 'true_label': y_true, 'predicted_label': y_pred, 'probability_score': y_prob})
+    predictions_df.to_csv(output_csv, index=False)
+    
     return results, confusion_matrix
+
 
 def get_evaluation_results(y_true, y_pred, output_spec, return_confusion_matrix = False):
 
